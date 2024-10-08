@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>UF</title>
+    <!-- Favicon -->
+    <link rel="icon" href="death-star.svg" type="image/x-icon" />
+    <link rel="stylesheet" href="styles.css" />
+    <style>
+      h1 {
+        text-align: center;
+        color: #2c3e50;
+      }
+      h2 {
+        color: #3498db;
+        border-bottom: 2px solid #3498db;
+        padding-bottom: 10px;
+        margin-top: 30px;
+      }
+      nav ul {
+        list-style-type: none;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+        background-color: #35424a;
+        padding: 10px 0;
+      }
+      nav ul li {
+        margin: 0 10px;
+      }
+      nav ul li a {
+        color: #ffffff;
+        text-decoration: none;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 20px;
+        background-color: white;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+      }
+      th,
+      td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+      }
+      th {
+        background-color: #3498db;
+        color: white;
+      }
+
+      tr:nth-child(even) {
+        background-color: #f2f2f2;
+      }
+      tr:hover {
+        background-color: #e0e0e0;
+      }
+      tr:hover {
+        background-color: #ddd;
+        font-weight: bold;
+      }
+      #loading {
+        text-align: center;
+        font-size: 18px;
+        margin-top: 20px;
+      }
+      @media (max-width: 600px) {
+        table {
+          font-size: 14px;
+        }
+        th,
+        td {
+          padding: 8px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <nav>
+        <ul>
+          <li><a href="/">Inicio</a></li>
+          <li><a href="dolar.html">Dólar</a></li>
+          <li><a href="uf.html">UF</a></li>
+          <li><a href="feriados.html">Feriados</a></li>
+          <li><a href="excel.html">Dolar y UF en Excel</a></li>
+          <li><a href="xmlformat.html">XML FORMATO</a></li>
+        </ul>
+      </nav>
+    </header>
+    <main>
+      <h1 id="pageTitle">UF</h1>
+      <div id="content"></div>
+      <div id="loading">Cargando datos...</div>
+    </main>
+
+    <script>
+      const currentDate = new Date();
+      const currentYear = currentDate.getFullYear();
+      const currentMonth = currentDate.getMonth() + 1;
+
+      function formatDate(dateString) {
+        const date = new Date(dateString);
+        return `${date.getDate().toString().padStart(2, '0')}-${(
+          date.getMonth() + 1
+        )
+          .toString()
+          .padStart(2, '0')}-${date.getFullYear()}`;
+      }
+
+      function groupByMonth(data) {
+        const grouped = {};
+        data.forEach((item) => {
+          const date = new Date(item.fecha);
+          const monthYear = `${date.getFullYear()}-${(date.getMonth() + 1)
+            .toString()
+            .padStart(2, '0')}`;
+          if (!grouped[monthYear]) {
+            grouped[monthYear] = [];
+          }
+          grouped[monthYear].push(item);
+        });
+        return grouped;
+      }
+
+      function renderData(groupedData) {
+        const contentDiv = document.getElementById('content');
+        contentDiv.innerHTML = ''; // Clear previous content
+        const monthNames = [
+          'Enero',
+          'Febrero',
+          'Marzo',
+          'Abril',
+          'Mayo',
+          'Junio',
+          'Julio',
+          'Agosto',
+          'Septiembre',
+          'Octubre',
+          'Noviembre',
+          'Diciembre',
+        ];
+        Object.keys(groupedData)
+          .sort()
+          .reverse()
+          .forEach((monthYear) => {
+            const monthSection = document.createElement('div');
+            const [year, month] = monthYear.split('-');
+            monthSection.innerHTML = `<h2>${
+              monthNames[parseInt(month) - 1]
+            } ${year}</h2>`;
+            const table = document.createElement('table');
+            table.innerHTML = '<tr><th>Fecha</th><th>Valor</th></tr>';
+            groupedData[monthYear].forEach((item) => {
+              const row = table.insertRow();
+              row.insertCell().textContent = formatDate(item.fecha);
+              row.insertCell().textContent = item.valor.toFixed(2);
+            });
+            monthSection.appendChild(table);
+            contentDiv.appendChild(monthSection);
+          });
+      }
+
+      document.getElementById('pageTitle').textContent = `UF ${currentYear}`;
+
+      fetch(`https://mindicador.cl/api/uf/${currentYear}`)
+        .then((response) => response.json())
+        .then((data) => {
+          const groupedData = groupByMonth(data.serie);
+          renderData(groupedData);
+          document.getElementById('loading').style.display = 'none';
+        })
+        .catch((error) => {
+          console.error('Error:', error);
+          document.getElementById('loading').textContent =
+            'Error al cargar los datos. Por favor, intente más tarde.';
+        });
+    </script>
+  </body>
+</html>

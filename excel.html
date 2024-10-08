@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Indicadores Económicos</title>
+    <link rel="stylesheet" href="styles.css" />
+    <!-- Favicon -->
+    <link rel="icon" href="death-star.svg" type="image/x-icon" />
+    <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
+    <style>
+      h1,
+      h2 {
+        text-align: center;
+        color: #2c3e50;
+      }
+      nav ul {
+        list-style-type: none;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+        background-color: #35424a;
+        padding: 10px 0;
+      }
+      nav ul li {
+        margin: 0 10px;
+      }
+      nav ul li a {
+        color: #ffffff;
+        text-decoration: none;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+        margin-bottom: 40px;
+      }
+      th,
+      td {
+        border: 1px solid #ddd;
+        padding: 12px;
+        text-align: left;
+      }
+      th {
+        background-color: #35424a;
+        color: white;
+      }
+      tr:nth-child(even) {
+        background-color: #f2f2f2;
+      }
+      tr:hover {
+        background-color: #ddd;
+        font-weight: bold;
+      }
+      button {
+        background-color: #35424a;
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        cursor: pointer;
+        font-size: 16px;
+        margin-top: 20px;
+      }
+      button:hover {
+        background-color: #202327;
+      }
+      #loading {
+        text-align: center;
+        font-size: 18px;
+        margin-top: 20px;
+      }
+      @media (max-width: 600px) {
+        table {
+          font-size: 14px;
+        }
+        th,
+        td {
+          padding: 8px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <nav>
+        <ul>
+          <li><a href="/">Inicio</a></li>
+          <li><a href="dolar.html">Dólar</a></li>
+          <li><a href="uf.html">UF</a></li>
+          <li><a href="feriados.html">Feriados</a></li>
+          <li><a href="excel.html">Dolar y UF en Excel</a></li>
+          <li><a href="xmlformat.html">XML FORMATO</a></li>
+        </ul>
+      </nav>
+    </header>
+    <main>
+      <h1>Indicadores Económicos</h1>
+      <button onclick="exportToExcel()">Exportar a Excel</button>
+      <div id="content"></div>
+      <div id="loading">Cargando datos...</div>
+    </main>
+    <script>
+      let combinedData = [];
+      const currentDate = new Date();
+      const currentYear = currentDate.getFullYear();
+      const currentMonth = currentDate.getMonth() + 1;
+
+      function formatDate(date) {
+        return `${date.getDate().toString().padStart(2, '0')}-${(
+          date.getMonth() + 1
+        )
+          .toString()
+          .padStart(2, '0')}-${date.getFullYear()}`;
+      }
+
+      function generateDaysUpToNow() {
+        const allDays = [];
+        const startDate = new Date(currentYear, 0, 1);
+        const endDate = new Date(
+          currentYear,
+          currentMonth - 1,
+          currentDate.getDate()
+        );
+        for (let d = startDate; d <= endDate; d.setDate(d.getDate() + 1)) {
+          allDays.push({
+            fecha: formatDate(new Date(d)),
+            valorDolar: 0,
+            valorUF: 0,
+          });
+        }
+        return allDays;
+      }
+
+      async function fetchData() {
+        try {
+          const [dolarResponse, ufResponse] = await Promise.all([
+            fetch(`https://mindicador.cl/api/dolar/${currentYear}`),
+            fetch(`https://mindicador.cl/api/uf/${currentYear}`),
+          ]);
+
+          const dolarData = await dolarResponse.json();
+          const ufData = await ufResponse.json();
+
+          combinedData = generateDaysUpToNow();
+
+          dolarData.serie.forEach((dolarItem) => {
+            const index = combinedData.findIndex(
+              (item) => item.fecha === formatDate(new Date(dolarItem.fecha))
+            );
+            if (index !== -1) {
+              combinedData[index].valorDolar = dolarItem.valor;
+            }
+          });
+
+          ufData.serie.forEach((ufItem) => {
+            const index = combinedData.findIndex(
+              (item) => item.fecha === formatDate(new Date(ufItem.fecha))
+            );
+            if (index !== -1) {
+              combinedData[index].valorUF = ufItem.valor;
+            }
+          });
+
+          renderData();
+        } catch (error) {
+          console.error('Error:', error);
+          document.getElementById('loading').textContent =
+            'Error al cargar los datos. Por favor, intente más tarde.';
+        }
+      }
+
+      function renderData() {
+        const contentDiv = document.getElementById('content');
+        contentDiv.innerHTML = ''; // Clear previous content
+
+        const months = [
+          'Enero',
+          'Febrero',
+          'Marzo',
+          'Abril',
+          'Mayo',
+          'Junio',
+          'Julio',
+          'Agosto',
+          'Septiembre',
+          'Octubre',
+          'Noviembre',
+          'Diciembre',
+        ];
+
+        combinedData.forEach((item, index) => {
+          if (
+            index === 0 ||
+            item.fecha.slice(-7) !== combinedData[index - 1].fecha.slice(-7)
+          ) {
+            const monthYear = item.fecha.slice(-7);
+            const [month, year] = monthYear.split('-');
+            const monthName = months[parseInt(month) - 1];
+
+            const monthHeader = document.createElement('h2');
+            monthHeader.textContent = `${monthName} ${year}`;
+            contentDiv.appendChild(monthHeader);
+
+            const table = document.createElement('table');
+            table.innerHTML = `
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Valor Dólar</th>
+                            <th>Valor UF</th>
+                        </tr>
+                    `;
+            contentDiv.appendChild(table);
+          }
+
+          const currentTable = contentDiv.lastElementChild;
+          const row = currentTable.insertRow();
+          row.insertCell().textContent = item.fecha;
+          row.insertCell().textContent = item.valorDolar.toFixed(2);
+          row.insertCell().textContent = item.valorUF.toFixed(2);
+        });
+
+        document.getElementById('loading').style.display = 'none';
+      }
+
+      function exportToExcel() {
+        const ws = XLSX.utils.json_to_sheet(combinedData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Indicadores');
+        XLSX.writeFile(wb, `indicadores_economicos_${currentYear}.xlsx`);
+      }
+
+      fetchData();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Feriados en Chile</title>
+    <!-- Favicon -->
+    <link rel="icon" href="death-star.svg" type="image/x-icon" />
+    <link rel="stylesheet" href="styles.css" />
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: #f4f4f4;
+      }
+
+      header {
+        background-color: #35424a;
+        color: #ffffff;
+        padding: 1rem;
+        text-align: center;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 20px auto;
+        padding: 0 20px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 20px;
+        font-size: 0.9rem;
+      }
+
+      table,
+      th,
+      td {
+        border: 1px solid #ddd;
+      }
+
+      th,
+      td {
+        padding: 12px;
+        text-align: left;
+      }
+
+      th {
+        background-color: #35424a;
+        color: white;
+      }
+
+      tr:nth-child(even) {
+        background-color: #f2f2f2;
+      }
+
+      tr:hover {
+        background-color: #ddd;
+      }
+
+      .export-button {
+        background-color: #35424a;
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        cursor: pointer;
+        font-size: 16px;
+        border-radius: 5px;
+        margin-bottom: 20px;
+      }
+
+      .export-button:hover {
+        background-color: #202327;
+      }
+
+      .search-container {
+        margin-bottom: 20px;
+      }
+
+      .search-container input {
+        padding: 10px;
+        font-size: 16px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        width: 200px;
+        margin-right: 10px;
+      }
+
+      .no-results {
+        text-align: center;
+        color: #ff6347;
+        font-size: 1.2rem;
+        margin-top: 20px;
+      }
+
+      @media (max-width: 768px) {
+        table,
+        th,
+        td {
+          font-size: 0.8rem;
+        }
+
+        .export-button,
+        .search-container input {
+          font-size: 14px;
+          padding: 8px 16px;
+        }
+      }
+
+      @media (max-width: 480px) {
+        table,
+        th,
+        td {
+          font-size: 0.7rem;
+        }
+
+        .export-button,
+        .search-container input {
+          font-size: 12px;
+          padding: 6px 12px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <nav>
+        <ul>
+          <li><a href="/">Inicio</a></li>
+          <li><a href="dolar.html">Dólar</a></li>
+          <li><a href="uf.html">UF</a></li>
+          <li><a href="feriados.html">Feriados</a></li>
+          <li><a href="excel.html">Dolar y UF en Excel</a></li>
+          <li><a href="xmlformat.html">XML FORMATO</a></li>
+        </ul>
+      </nav>
+    </header>
+
+    <h1>Feriados Oficiales en Chile <span id="year"></span></h1>
+    <div class="container">
+      <div class="search-container">
+        <input
+          type="text"
+          id="searchDate"
+          placeholder="Buscar por fecha (dd-mm-aaaa) o mes (mm)"
+        />
+        <button class="export-button" id="searchBtn">Buscar</button>
+      </div>
+      <button class="export-button" id="exportBtn">Exportar a Excel</button>
+      <table id="holidaysTable">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Día</th>
+            <th>Título</th>
+            <th>Tipo</th>
+            <th>Inalienable</th>
+            <th>Detalles</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Los feriados se mostrarán aquí -->
+        </tbody>
+      </table>
+      <div id="noResults" class="no-results" style="display: none">
+        No se encontraron feriados para la búsqueda ingresada.
+      </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.5/xlsx.full.min.js"></script>
+
+    <script>
+      const currentYear = new Date().getFullYear();
+      document.getElementById('year').innerText = currentYear;
+
+      let holidaysData = [];
+
+      // Función para formatear la fecha a dd-mm-aaaa
+      function formatDate(isoDate) {
+        const date = new Date(isoDate);
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        return `${day}-${month}-${year}`;
+      }
+
+      // Función para obtener el nombre del día de la semana
+      function getDayName(isoDate) {
+        const days = [
+          'Domingo',
+          'Lunes',
+          'Martes',
+          'Miércoles',
+          'Jueves',
+          'Viernes',
+          'Sábado',
+        ];
+        const date = new Date(isoDate);
+        return days[date.getDay()];
+      }
+
+      async function fetchHolidays() {
+        try {
+          const response = await fetch(
+            `https://api.boostr.cl/holidays.json?year=${currentYear}`
+          );
+          const data = await response.json();
+
+          if (data.status === 'success') {
+            holidaysData = data.data;
+            renderHolidaysTable(holidaysData);
+          }
+        } catch (error) {
+          console.error('Error al obtener los feriados:', error);
+        }
+      }
+
+      function renderHolidaysTable(holidays) {
+        const holidaysTableBody = document.querySelector(
+          '#holidaysTable tbody'
+        );
+        holidaysTableBody.innerHTML = ''; // Limpiar la tabla antes de renderizar
+        document.getElementById('noResults').style.display = 'none'; // Ocultar el mensaje de "no resultados"
+
+        holidays.forEach((holiday) => {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+                <td>${formatDate(holiday.date)}</td>
+                <td>${getDayName(holiday.date)}</td>
+                <td>${holiday.title}</td>
+                <td>${holiday.type}</td>
+                <td>${holiday.inalienable ? 'Sí' : 'No'}</td>
+                <td>${holiday.extra}</td>
+            `;
+          holidaysTableBody.appendChild(row);
+        });
+      }
+
+      // Función para buscar feriado por fecha completa o mes
+      function searchHoliday() {
+        const searchValue = document.getElementById('searchDate').value;
+        let filteredHolidays = [];
+
+        if (searchValue.length === 10) {
+          // Formato dd-mm-aaaa (fecha completa)
+          filteredHolidays = holidaysData.filter(
+            (holiday) => formatDate(holiday.date) === searchValue
+          );
+        } else if (searchValue.length === 2) {
+          // Formato mm (mes)
+          filteredHolidays = holidaysData.filter((holiday) => {
+            const month = String(
+              new Date(holiday.date).getMonth() + 1
+            ).padStart(2, '0');
+            return month === searchValue;
+          });
+        }
+
+        if (filteredHolidays.length > 0) {
+          renderHolidaysTable(filteredHolidays);
+        } else {
+          // Mostrar el mensaje de "no resultados"
+          document.getElementById('noResults').style.display = 'block';
+          document.querySelector('#holidaysTable tbody').innerHTML = ''; // Limpiar la tabla
+        }
+      }
+
+      // Detectar click en el botón de búsqueda
+      document
+        .getElementById('searchBtn')
+        .addEventListener('click', searchHoliday);
+
+      // Detectar cuando se presiona Enter en el campo de entrada
+      document
+        .getElementById('searchDate')
+        .addEventListener('keydown', function (event) {
+          if (event.key === 'Enter') {
+            searchHoliday();
+          }
+        });
+
+      function exportTableToExcel(tableID, filename = '') {
+        const table = document.getElementById(tableID);
+        const wb = XLSX.utils.table_to_book(table, { sheet: 'Sheet1' });
+        const ws = wb.Sheets['Sheet1'];
+        ws['!cols'] = [
+          { wpx: 120 },
+          { wpx: 180 },
+          { wpx: 100 },
+          { wpx: 100 },
+          { wpx: 150 },
+        ];
+        const excelFilename = filename
+          ? `${filename}.xlsx`
+          : `feriados_${currentYear}.xlsx`;
+        XLSX.writeFile(wb, excelFilename);
+      }
+
+      document.getElementById('exportBtn').addEventListener('click', () => {
+        exportTableToExcel('holidaysTable', `feriados_${currentYear}`);
+      });
+
+      fetchHolidays();
+    </script>
+  </body>
+</html>
